@@ -45,7 +45,7 @@ podio::ROOTFrameReader *setup_reader(std::string filename) {
     
 }
 
-const int MAX_DR = 1;
+const float MAX_DR = 1;
 
 void matching_performance(std::string particle) {
     podio::ROOTReader *reader = setup_reader(Form("output/%s.root", particle.c_str()));
@@ -53,14 +53,18 @@ void matching_performance(std::string particle) {
     TFile *output_file = new TFile(Form("output/matching_performance_%s.root", particle.c_str()), "RECREATE");
 
     TH1 *track_pt_distribution = new TH1D("track_pt_distribution", "Track pT distribution;p_{T};Counts", 100, 0, 10);
-    TH2 *track_eta_phi_distribution = new TH2D("track_eta_phi_distribution", "Track eta-phi distribution;#eta;#phi;Counts", 50, -1.5, 1.5, 50, -1 * TMath::Pi(), TMath::Pi());
+    TH2 *track_eta_phi_distribution = new TH2D("track_eta_phi_distribution", "Track eta-phi distribution;#eta;#phi;Counts", 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
     TH1 *cluster_E_distribution = new TH1D("cluster_E_distribution", "Cluster E distribution;E;Counts", 100, 0, 10);
-    TH2 *cluster_eta_phi_distribution = new TH2D("cluster_eta_phi_distribution", "Cluster eta-phi distribution;#eta;#phi;Counts", 50, -1.5, 1.5, 50, -1 * TMath::Pi(), TMath::Pi());
+    TH2 *cluster_eta_phi_distribution = new TH2D("cluster_eta_phi_distribution", "Cluster eta-phi distribution;#eta;#phi;Counts", 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
 
     TH2 *track_cluster_dR = new TH2D("track_cluster_dR", "Track-cluster dR distribution;p_{T};#Delta R;Counts", 100, 0, 10, 100, 0, MAX_DR);
+    TH2 *track_cluster_dR_eta = new TH2D("track_cluster_dR_vs_eta", "Track-cluster dR distribution;#eta;#Delta R;Counts", 100, -3, 3, 100, 0, MAX_DR/2);
+    TH2 *track_cluster_dR_phi = new TH2D("track_cluster_dR_vs_phi", "Track-cluster dR distribution;#phi;#Delta R;Counts", 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
     TH2 *track_cluster_dEta = new TH2D("track_cluster_dEta", "Track-cluster dEta distribution;p_{T};#Delta #eta;Counts", 100, 0, 10, 100, 0, MAX_DR);
-    TH2 *track_cluster_dPhi = new TH2D("track_cluster_dPhi", "Track-cluster dPhi distribution;p_{T};#Delta #phi;Counts", 100, 0, 10, 100, 0, MAX_DR);
-    TH2 *track_cluster_eta = new TH2D("track_cluster_eta", "Track-cluster eta comparison;Track #eta;Cluster #eta;Counts", 50, -1.5, 1.5, 50, -1.5, 1.5);
+    TH2 *track_cluster_dEta_phi = new TH2D("track_cluster_dEta_phi", "Track-cluster dEta distribution;#phi;#Delta #eta;Counts", 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
+    TH2 *track_cluster_dPhi = new TH2D("track_cluster_dPhi", "Track-cluster dPhi distribution;#phi;#Delta #phi;Counts", 100, 0, 10, 100, 0, MAX_DR);
+    TH2 *track_cluster_dPhi_eta = new TH2D("track_cluster_dPhi_eta", "Track-cluster dPhi distribution;#eta;#Delta #phi;Counts", 100, -3, 3, 100, 0, MAX_DR/2);
+    TH2 *track_cluster_eta = new TH2D("track_cluster_eta", "Track-cluster eta comparison;Track #eta;Cluster #eta;Counts", 50, -4, 4, 50, -4, 4);
     TH2 *track_cluster_phi = new TH2D("track_cluster_phi", "Track-cluster phi comparison;Track #phi;Cluster #phi;Counts", 50, -1 * TMath::Pi(), TMath::Pi(), 50, -1 * TMath::Pi(), TMath::Pi());
     TH2 *track_cluster_E = new TH2D("track_cluster_E", "Track-cluster E comparison;Track p_{T};Cluster E;Counts", 100, 0, 10, 100, 0, 10);
 
@@ -133,8 +137,12 @@ void matching_performance(std::string particle) {
             // std::cout << "t_phi = " << track_phi << ", c_phi = " << cluster_phi << ", dPhi = " << dPhi << std::endl;
             // std::cout << "dR = " << dR << std::endl;
             track_cluster_dR->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dR);
+            track_cluster_dR_eta->Fill(track_eta, dR);
+            track_cluster_dR_phi->Fill(track_phi, dR);
             track_cluster_dEta->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dEta);
+            track_cluster_dEta_phi->Fill(track_phi, dEta);
             track_cluster_dPhi->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dPhi);
+            track_cluster_dPhi_eta->Fill(track_eta, dPhi);
             track_cluster_eta->Fill(track_eta, cluster_eta);
             track_cluster_phi->Fill(track_phi, cluster_phi);
             track_cluster_E->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matched_cluster.getEnergy());

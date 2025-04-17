@@ -44,5 +44,5 @@ def run_analyses():
 
                           
 
-run_simulations()
+# run_simulations()
 run_analyses()
