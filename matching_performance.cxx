@@ -1,5 +1,5 @@
 #include <podio/ROOTReader.h>
-#include <podio/ROOTFrameReader.h>
+#include <podio/ROOTReader.h>
 #include <podio/ROOTFrameData.h>
 #include <podio/Frame.h>
 #include <podio/CollectionBase.h>
@@ -26,8 +26,8 @@
 #include <TH3D.h>
 #include <TMath.h>
 
-podio::ROOTFrameReader *setup_reader(std::string filename) {
-    podio::ROOTFrameReader *reader = new podio::ROOTFrameReader();
+podio::ROOTReader *setup_reader(std::string filename) {
+    podio::ROOTReader *reader = new podio::ROOTReader();
     reader->openFile(filename);
     std::cout << "Opened file with " << reader->getEntries(podio::Category::Event) << " events" << std::endl;
     auto categories = reader->getAvailableCategories();
@@ -46,6 +46,16 @@ podio::ROOTFrameReader *setup_reader(std::string filename) {
 }
 
 const float MAX_DR = 1;
+std::vector<std::string> cluster_collections = {
+    "EcalEndcapPTrackClusterMatches",
+    "EcalEndcapPInsertTrackClusterMatches",
+    "LFHCALTrackClusterMatches",
+    "HcalEndcapPInsertClusterMatches",
+    "EcalBarrelTrackClusterMatches",
+    "HcalBarrelTrackClusterMatches",
+    "EcalEndcapNTrackClusterMatches",
+    "HcalEndcapNTrackClusterMatches",
+};
 
 void matching_performance(std::string particle) {
     podio::ROOTReader *reader = setup_reader(Form("output/%s.root", particle.c_str()));
@@ -99,58 +109,60 @@ void matching_performance(std::string particle) {
         }
 
         // Check the matching
-        auto &matches = frame.get<edm4eic::TrackClusterMatchCollection>("TrackClusterMatches");
-        num_matches->Fill(matches.size());
-        // std::cout << "Found " << matches.size() << " matches" << std::endl;
-        bool first = true;
-        for (auto match : matches) {
-            // std::cout << "Processing match" << std::endl;
-            auto matched_track = match.getTrack();
-            auto mached_track_id = matched_track.getObjectID();
-            // Now we need to loop and find the TrackSegment with the same object ID
-            std::optional<edm4eic::TrackSegment> matched_track_segment = std::nullopt;
-            for (auto track_segment : tracks) {
-                if (track_segment.getTrack().getObjectID() == mached_track_id) {
-                    matched_track_segment = track_segment;
-                    break;
+        for (auto collection : cluster_collections) {
+            auto &matches = frame.get<edm4eic::TrackClusterMatchCollection>(collection);
+            num_matches->Fill(matches.size());
+            // std::cout << "Found " << matches.size() << " matches" << std::endl;
+            bool first = true;
+            for (auto match : matches) {
+                // std::cout << "Processing match" << std::endl;
+                auto matched_track = match.getTrack();
+                auto mached_track_id = matched_track.getObjectID();
+                // Now we need to loop and find the TrackSegment with the same object ID
+                std::optional<edm4eic::TrackSegment> matched_track_segment = std::nullopt;
+                for (auto track_segment : tracks) {
+                    if (track_segment.getTrack().getObjectID() == mached_track_id) {
+                        matched_track_segment = track_segment;
+                        break;
+                    }
                 }
-            }
-            if (!matched_track_segment.has_value()) {
-                std::cout << "Could not find a matching track segment for the track" << std::endl;
-                continue;
-            }
-            if (matched_track_segment->points_size() == 0) {
-                std::cout << "Matched track segment has no points" << std::endl;
-                continue;
-            }
-            auto matched_cluster = match.getCluster();
+                if (!matched_track_segment.has_value()) {
+                    std::cout << "Could not find a matching track segment for the track" << std::endl;
+                    continue;
+                }
+                if (matched_track_segment->points_size() == 0) {
+                    std::cout << "Matched track segment has no points" << std::endl;
+                    continue;
+                }
+                auto matched_cluster = match.getCluster();
 
-            auto track_eta = edm4hep::utils::eta(matched_track_segment->getPoints()[0].position);
-            auto track_phi = edm4hep::utils::angleAzimuthal(matched_track_segment->getPoints()[0].position);
-            auto cluster_eta = edm4hep::utils::eta(matched_cluster.getPosition());
-            auto cluster_phi = edm4hep::utils::angleAzimuthal(matched_cluster.getPosition());
+                auto track_eta = edm4hep::utils::eta(matched_track_segment->getPoints()[0].position);
+                auto track_phi = edm4hep::utils::angleAzimuthal(matched_track_segment->getPoints()[0].position);
+                auto cluster_eta = edm4hep::utils::eta(matched_cluster.getPosition());
+                auto cluster_phi = edm4hep::utils::angleAzimuthal(matched_cluster.getPosition());
 
-            auto dEta = std::abs(track_eta - cluster_eta);
-            auto dPhi = std::abs(track_phi - cluster_phi);
-            auto dR = std::hypot(dEta, dPhi);
-            // std::cout << "t_eta = " << track_eta << ", c_eta = " << cluster_eta << ", dEta = " << dEta << std::endl;
-            // std::cout << "t_phi = " << track_phi << ", c_phi = " << cluster_phi << ", dPhi = " << dPhi << std::endl;
-            // std::cout << "dR = " << dR << std::endl;
-            track_cluster_dR->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dR);
-            track_cluster_dR_eta->Fill(track_eta, dR);
-            track_cluster_dR_phi->Fill(track_phi, dR);
-            track_cluster_dEta->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dEta);
-            track_cluster_dEta_phi->Fill(track_phi, dEta);
-            track_cluster_dPhi->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dPhi);
-            track_cluster_dPhi_eta->Fill(track_eta, dPhi);
-            track_cluster_eta->Fill(track_eta, cluster_eta);
-            track_cluster_phi->Fill(track_phi, cluster_phi);
-            track_cluster_E->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matched_cluster.getEnergy());
+                auto dEta = std::abs(track_eta - cluster_eta);
+                auto dPhi = std::abs(track_phi - cluster_phi);
+                auto dR = std::hypot(dEta, dPhi);
+                // std::cout << "t_eta = " << track_eta << ", c_eta = " << cluster_eta << ", dEta = " << dEta << std::endl;
+                // std::cout << "t_phi = " << track_phi << ", c_phi = " << cluster_phi << ", dPhi = " << dPhi << std::endl;
+                // std::cout << "dR = " << dR << std::endl;
+                track_cluster_dR->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dR);
+                track_cluster_dR_eta->Fill(track_eta, dR);
+                track_cluster_dR_phi->Fill(track_phi, dR);
+                track_cluster_dEta->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dEta);
+                track_cluster_dEta_phi->Fill(track_phi, dEta);
+                track_cluster_dPhi->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dPhi);
+                track_cluster_dPhi_eta->Fill(track_eta, dPhi);
+                track_cluster_eta->Fill(track_eta, cluster_eta);
+                track_cluster_phi->Fill(track_phi, cluster_phi);
+                track_cluster_E->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matched_cluster.getEnergy());
 
-            if (first) {
-                num_matches_trk_pt->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matches.size());
-                num_matches_clstr_E->Fill(matched_cluster.getEnergy(), matches.size());
-                first = false;
+                if (first) {
+                    num_matches_trk_pt->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matches.size());
+                    num_matches_clstr_E->Fill(matched_cluster.getEnergy(), matches.size());
+                    first = false;
+                }
             }
         }
     }
