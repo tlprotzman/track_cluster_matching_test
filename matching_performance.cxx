@@ -48,7 +48,6 @@ podio::ROOTReader *setup_reader(std::string filename) {
 const float MAX_DR = 1;
 std::vector<std::string> cluster_collections = {
     "EcalEndcapPTrackClusterMatches",
-    "EcalEndcapPInsertTrackClusterMatches",
     "LFHCALTrackClusterMatches",
     "HcalEndcapPInsertClusterMatches",
     "EcalBarrelTrackClusterMatches",
@@ -100,12 +99,14 @@ void matching_performance(std::string particle) {
             track_eta_phi_distribution->Fill(track_eta, track_phi);
         }
 
-        auto &clusters = frame.get<edm4eic::ClusterCollection>("BarrelClusters");
-        for (auto cluster : clusters) {
-            cluster_E_distribution->Fill(cluster.getEnergy());
-            auto cluster_eta = edm4hep::utils::eta(cluster.getPosition());
-            auto cluster_phi = edm4hep::utils::angleAzimuthal(cluster.getPosition());
-            cluster_eta_phi_distribution->Fill(cluster_eta, cluster_phi);
+        for (auto collection : cluster_collections) {
+            auto &clusters = frame.get<edm4eic::ClusterCollection>(collection);
+            for (auto cluster : clusters) {
+                cluster_E_distribution->Fill(cluster.getEnergy());
+                auto cluster_eta = edm4hep::utils::eta(cluster.getPosition());
+                auto cluster_phi = edm4hep::utils::angleAzimuthal(cluster.getPosition());
+                cluster_eta_phi_distribution->Fill(cluster_eta, cluster_phi);
+            }
         }
 
         // Check the matching
