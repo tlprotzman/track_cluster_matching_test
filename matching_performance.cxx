@@ -47,13 +47,12 @@ podio::ROOTReader *setup_reader(std::string filename) {
 
 const float MAX_DR = 1;
 std::vector<std::string> cluster_collections = {
-    "EcalEndcapPTrackClusterMatches",
-    "LFHCALTrackClusterMatches",
-    "HcalEndcapPInsertClusterMatches",
     "EcalBarrelTrackClusterMatches",
-    "HcalBarrelTrackClusterMatches",
     "EcalEndcapNTrackClusterMatches",
+    "EcalEndcapPTrackClusterMatches",
+    "HcalBarrelTrackClusterMatches",
     "HcalEndcapNTrackClusterMatches",
+    "LFHCALTrackClusterMatches",
 };
 
 void matching_performance(std::string particle) {
@@ -61,109 +60,153 @@ void matching_performance(std::string particle) {
 
     TFile *output_file = new TFile(Form("output/matching_performance_%s.root", particle.c_str()), "RECREATE");
 
-    TH1 *track_pt_distribution = new TH1D("track_pt_distribution", "Track pT distribution;p_{T};Counts", 100, 0, 10);
-    TH2 *track_eta_phi_distribution = new TH2D("track_eta_phi_distribution", "Track eta-phi distribution;#eta;#phi;Counts", 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
-    TH1 *cluster_E_distribution = new TH1D("cluster_E_distribution", "Cluster E distribution;E;Counts", 100, 0, 10);
-    TH2 *cluster_eta_phi_distribution = new TH2D("cluster_eta_phi_distribution", "Cluster eta-phi distribution;#eta;#phi;Counts", 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
 
-    TH2 *track_cluster_dR = new TH2D("track_cluster_dR", "Track-cluster dR distribution;p_{T};#Delta R;Counts", 100, 0, 10, 100, 0, MAX_DR);
-    TH2 *track_cluster_dR_eta = new TH2D("track_cluster_dR_vs_eta", "Track-cluster dR distribution;#eta;#Delta R;Counts", 100, -3, 3, 100, 0, MAX_DR/2);
-    TH2 *track_cluster_dR_phi = new TH2D("track_cluster_dR_vs_phi", "Track-cluster dR distribution;#phi;#Delta R;Counts", 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
-    TH2 *track_cluster_dEta = new TH2D("track_cluster_dEta", "Track-cluster dEta distribution;p_{T};#Delta #eta;Counts", 100, 0, 10, 100, 0, MAX_DR);
-    TH2 *track_cluster_dEta_phi = new TH2D("track_cluster_dEta_phi", "Track-cluster dEta distribution;#phi;#Delta #eta;Counts", 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
-    TH2 *track_cluster_dPhi = new TH2D("track_cluster_dPhi", "Track-cluster dPhi distribution;#phi;#Delta #phi;Counts", 100, 0, 10, 100, 0, MAX_DR);
-    TH2 *track_cluster_dPhi_eta = new TH2D("track_cluster_dPhi_eta", "Track-cluster dPhi distribution;#eta;#Delta #phi;Counts", 100, -3, 3, 100, 0, MAX_DR/2);
-    TH2 *track_cluster_eta = new TH2D("track_cluster_eta", "Track-cluster eta comparison;Track #eta;Cluster #eta;Counts", 50, -4, 4, 50, -4, 4);
-    TH2 *track_cluster_phi = new TH2D("track_cluster_phi", "Track-cluster phi comparison;Track #phi;Cluster #phi;Counts", 50, -1 * TMath::Pi(), TMath::Pi(), 50, -1 * TMath::Pi(), TMath::Pi());
-    TH2 *track_cluster_E = new TH2D("track_cluster_E", "Track-cluster E comparison;Track p_{T};Cluster E;Counts", 100, 0, 10, 100, 0, 10);
+    std::map<std::string, TH1*> track_pt_distributions;
+    std::map<std::string, TH2*> track_eta_phi_distributions;
+    std::map<std::string, TH1*> cluster_E_distributions;
+    std::map<std::string, TH2*> cluster_eta_phi_distributions;
 
-    TH1 *num_matches = new TH1D("num_matches", "Number of matches;Number of matches;Counts", 10, 0, 10);
-    TH2 *num_matches_trk_pt = new TH2D("num_matches_trk_pt", "Number of matches;Track pT;Number of matches;Counts", 100, 0, 10, 10, 0, 10);
-    TH2 *num_matches_clstr_E = new TH2D("num_matches_clstr_E", "Number of matches;Cluster E;Number of matches;Counts", 100, 0, 10, 10, 0, 10);
+    std::map<std::string, TH2*> track_cluster_dRs;
+    std::map<std::string, TH2*> track_cluster_dR_etas;
+    std::map<std::string, TH2*> track_cluster_dR_phis;
+    std::map<std::string, TH2*> track_cluster_dEtas;
+    std::map<std::string, TH2*> track_cluster_dEta_phis;
+    std::map<std::string, TH2*> track_cluster_dPhis;
+    std::map<std::string, TH2*> track_cluster_dPhi_etas;
+    std::map<std::string, TH2*> track_cluster_etas;
+    std::map<std::string, TH2*> track_cluster_phis;
+    std::map<std::string, TH2*> track_cluster_Es;
+
+    std::map<std::string, TH1*> num_matches;
+    std::map<std::string, TH2*> num_matches_trk_pts;
+    std::map<std::string, TH2*> num_matches_clstr_Es;
+
+    for (const auto& collection : cluster_collections) {
+        track_pt_distributions[collection] = new TH1D(Form("track_pt_distribution_%s", collection.c_str()), 
+            Form("Track pT distribution for %s;p_{T};Counts", collection.c_str()), 100, 0, 10);
+        track_eta_phi_distributions[collection] = new TH2D(Form("track_eta_phi_distribution_%s", collection.c_str()), 
+            Form("Track eta-phi distribution for %s;#eta;#phi;Counts", collection.c_str()), 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
+        cluster_E_distributions[collection] = new TH1D(Form("cluster_E_distribution_%s", collection.c_str()), 
+            Form("Cluster E distribution for %s;E;Counts", collection.c_str()), 100, 0, 10);
+        cluster_eta_phi_distributions[collection] = new TH2D(Form("cluster_eta_phi_distribution_%s", collection.c_str()), 
+            Form("Cluster eta-phi distribution for %s;#eta;#phi;Counts", collection.c_str()), 50, -4, 4, 50, -1 * TMath::Pi(), TMath::Pi());
+
+        track_cluster_dRs[collection] = new TH2D(Form("track_cluster_dR_%s", collection.c_str()), 
+            Form("Track-cluster dR distribution for %s;p_{T};#Delta R;Counts", collection.c_str()), 100, 0, 10, 100, 0, MAX_DR);
+        track_cluster_dR_etas[collection] = new TH2D(Form("track_cluster_dR_vs_eta_%s", collection.c_str()), 
+            Form("Track-cluster dR distribution for %s;#eta;#Delta R;Counts", collection.c_str()), 100, -3, 3, 100, 0, MAX_DR/2);
+        track_cluster_dR_phis[collection] = new TH2D(Form("track_cluster_dR_vs_phi_%s", collection.c_str()), 
+            Form("Track-cluster dR distribution for %s;#phi;#Delta R;Counts", collection.c_str()), 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
+        track_cluster_dEtas[collection] = new TH2D(Form("track_cluster_dEta_%s", collection.c_str()), 
+            Form("Track-cluster dEta distribution for %s;p_{T};#Delta #eta;Counts", collection.c_str()), 100, 0, 10, 100, 0, MAX_DR);
+        track_cluster_dEta_phis[collection] = new TH2D(Form("track_cluster_dEta_phi_%s", collection.c_str()), 
+            Form("Track-cluster dEta distribution for %s;#phi;#Delta #eta;Counts", collection.c_str()), 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
+        track_cluster_dPhis[collection] = new TH2D(Form("track_cluster_dPhi_%s", collection.c_str()), 
+            Form("Track-cluster dPhi distribution for %s;#phi;#Delta #phi;Counts", collection.c_str()), 100, 0, 10, 100, 0, MAX_DR);
+        track_cluster_dPhi_etas[collection] = new TH2D(Form("track_cluster_dPhi_eta_%s", collection.c_str()), 
+            Form("Track-cluster dPhi distribution for %s;#eta;#Delta #phi;Counts", collection.c_str()), 100, -3, 3, 100, 0, MAX_DR/2);
+        track_cluster_etas[collection] = new TH2D(Form("track_cluster_eta_%s", collection.c_str()), 
+            Form("Track-cluster eta comparison for %s;Track #eta;Cluster #eta;Counts", collection.c_str()), 50, -4, 4, 50, -4, 4);
+        track_cluster_phis[collection] = new TH2D(Form("track_cluster_phi_%s", collection.c_str()), 
+            Form("Track-cluster phi comparison for %s;Track #phi;Cluster #phi;Counts", collection.c_str()), 50, -1 * TMath::Pi(), TMath::Pi(), 50, -1 * TMath::Pi(), TMath::Pi());
+        track_cluster_Es[collection] = new TH2D(Form("track_cluster_E_%s", collection.c_str()), 
+            Form("Track-cluster E comparison for %s;Track p_{T};Cluster E;Counts", collection.c_str()), 100, 0, 10, 100, 0, 10);
+
+        num_matches[collection] = new TH1D(Form("num_matches_%s", collection.c_str()), 
+            Form("Number of matches for %s;Number of matches;Counts", collection.c_str()), 10, 0, 10);
+        num_matches_trk_pts[collection] = new TH2D(Form("num_matches_trk_pt_%s", collection.c_str()), 
+            Form("Number of matches for %s;Track pT;Number of matches;Counts", collection.c_str()), 100, 0, 10, 10, 0, 10);
+        num_matches_clstr_Es[collection] = new TH2D(Form("num_matches_clstr_E_%s", collection.c_str()), 
+            Form("Number of matches for %s;Cluster E;Number of matches;Counts", collection.c_str()), 100, 0, 10, 10, 0, 10);
+    }
 
     // std::unique_ptr<podio::ROOTFrameData> data = nullptr;
-    for (int i = 0; i < reader->getEntries(podio::Category::Event); i++) {
+    auto n_events = reader->getEntries(podio::Category::Event);
+    for (int i = 0; i < n_events; i++) {
         auto frame = podio::Frame(reader->readEntry(podio::Category::Event, i));  // I really need to understand unique and shared pointers one of these days...
-        // std::cout << "Processing event" << std::endl;
+        
+        if (i % 1000 == 0) {
+            std::cout << "Processing event " << i << ".  " << 100 * ((float)i / n_events) << " done" << std::endl;
+        }
+        if (i > 10000) break; // For testing
 
         // Check individual collections
         auto &tracks = frame.get<edm4eic::TrackSegmentCollection>("CalorimeterTrackProjections");
         for (auto track : tracks) {
             if (track.points_size() == 0) {
-                std::cout << "Track has no points" << std::endl;
-                continue;
+            std::cout << "Track has no points" << std::endl;
+            continue;
             }
-            track_pt_distribution->Fill(edm4hep::utils::magnitudeTransverse(track.getPoints()[0].momentum));   // sigh
+            auto track_pt = edm4hep::utils::magnitudeTransverse(track.getPoints()[0].momentum);
             auto track_eta = edm4hep::utils::eta(track.getPoints()[0].position);
             auto track_phi = edm4hep::utils::angleAzimuthal(track.getPoints()[0].position);
-            track_eta_phi_distribution->Fill(track_eta, track_phi);
+
+            for (const auto& collection : cluster_collections) {
+            track_pt_distributions[collection]->Fill(track_pt);
+            track_eta_phi_distributions[collection]->Fill(track_eta, track_phi);
+            }
         }
 
-        for (auto collection : cluster_collections) {
+        for (const auto& collection : cluster_collections) {
+            std::cout << "found " << frame.get<edm4eic::ClusterCollection>(collection).size() << " clusters in collection " << collection << std::endl;
             auto &clusters = frame.get<edm4eic::ClusterCollection>(collection);
             for (auto cluster : clusters) {
-                cluster_E_distribution->Fill(cluster.getEnergy());
-                auto cluster_eta = edm4hep::utils::eta(cluster.getPosition());
-                auto cluster_phi = edm4hep::utils::angleAzimuthal(cluster.getPosition());
-                cluster_eta_phi_distribution->Fill(cluster_eta, cluster_phi);
+            auto cluster_E = cluster.getEnergy();
+            auto cluster_eta = edm4hep::utils::eta(cluster.getPosition());
+            auto cluster_phi = edm4hep::utils::angleAzimuthal(cluster.getPosition());
+
+            cluster_E_distributions[collection]->Fill(cluster_E);
+            cluster_eta_phi_distributions[collection]->Fill(cluster_eta, cluster_phi);
             }
         }
 
         // Check the matching
-        for (auto collection : cluster_collections) {
+        for (const auto& collection : cluster_collections) {
             auto &matches = frame.get<edm4eic::TrackClusterMatchCollection>(collection);
-            num_matches->Fill(matches.size());
-            // std::cout << "Found " << matches.size() << " matches" << std::endl;
-            bool first = true;
+            num_matches[collection]->Fill(matches.size());
+
             for (auto match : matches) {
-                // std::cout << "Processing match" << std::endl;
-                auto matched_track = match.getTrack();
-                auto mached_track_id = matched_track.getObjectID();
-                // Now we need to loop and find the TrackSegment with the same object ID
-                std::optional<edm4eic::TrackSegment> matched_track_segment = std::nullopt;
-                for (auto track_segment : tracks) {
-                    if (track_segment.getTrack().getObjectID() == mached_track_id) {
-                        matched_track_segment = track_segment;
-                        break;
-                    }
-                }
-                if (!matched_track_segment.has_value()) {
-                    std::cout << "Could not find a matching track segment for the track" << std::endl;
-                    continue;
-                }
-                if (matched_track_segment->points_size() == 0) {
-                    std::cout << "Matched track segment has no points" << std::endl;
-                    continue;
-                }
-                auto matched_cluster = match.getCluster();
+            auto matched_track = match.getTrack();
+            auto matched_track_id = matched_track.getObjectID();
 
-                auto track_eta = edm4hep::utils::eta(matched_track_segment->getPoints()[0].position);
-                auto track_phi = edm4hep::utils::angleAzimuthal(matched_track_segment->getPoints()[0].position);
-                auto cluster_eta = edm4hep::utils::eta(matched_cluster.getPosition());
-                auto cluster_phi = edm4hep::utils::angleAzimuthal(matched_cluster.getPosition());
-
-                auto dEta = std::abs(track_eta - cluster_eta);
-                auto dPhi = std::abs(track_phi - cluster_phi);
-                auto dR = std::hypot(dEta, dPhi);
-                // std::cout << "t_eta = " << track_eta << ", c_eta = " << cluster_eta << ", dEta = " << dEta << std::endl;
-                // std::cout << "t_phi = " << track_phi << ", c_phi = " << cluster_phi << ", dPhi = " << dPhi << std::endl;
-                // std::cout << "dR = " << dR << std::endl;
-                track_cluster_dR->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dR);
-                track_cluster_dR_eta->Fill(track_eta, dR);
-                track_cluster_dR_phi->Fill(track_phi, dR);
-                track_cluster_dEta->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dEta);
-                track_cluster_dEta_phi->Fill(track_phi, dEta);
-                track_cluster_dPhi->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), dPhi);
-                track_cluster_dPhi_eta->Fill(track_eta, dPhi);
-                track_cluster_eta->Fill(track_eta, cluster_eta);
-                track_cluster_phi->Fill(track_phi, cluster_phi);
-                track_cluster_E->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matched_cluster.getEnergy());
-
-                if (first) {
-                    num_matches_trk_pt->Fill(edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum), matches.size());
-                    num_matches_clstr_E->Fill(matched_cluster.getEnergy(), matches.size());
-                    first = false;
+            std::optional<edm4eic::TrackSegment> matched_track_segment = std::nullopt;
+            for (auto track_segment : tracks) {
+                if (track_segment.getTrack().getObjectID() == matched_track_id) {
+                matched_track_segment = track_segment;
+                break;
                 }
+            }
+
+            if (!matched_track_segment.has_value() || matched_track_segment->points_size() == 0) {
+                std::cout << "Could not find a valid matching track segment for the track" << std::endl;
+                continue;
+            }
+
+            auto matched_cluster = match.getCluster();
+            auto track_pt = edm4hep::utils::magnitudeTransverse(matched_track_segment->getPoints()[0].momentum);
+            auto track_eta = edm4hep::utils::eta(matched_track_segment->getPoints()[0].position);
+            auto track_phi = edm4hep::utils::angleAzimuthal(matched_track_segment->getPoints()[0].position);
+            auto cluster_eta = edm4hep::utils::eta(matched_cluster.getPosition());
+            auto cluster_phi = edm4hep::utils::angleAzimuthal(matched_cluster.getPosition());
+            auto cluster_E = matched_cluster.getEnergy();
+
+            auto dEta = std::abs(track_eta - cluster_eta);
+            auto dPhi = std::abs(track_phi - cluster_phi);
+            auto dR = std::hypot(dEta, dPhi);
+
+            track_cluster_dRs[collection]->Fill(track_pt, dR);
+            track_cluster_dR_etas[collection]->Fill(track_eta, dR);
+            track_cluster_dR_phis[collection]->Fill(track_phi, dR);
+            track_cluster_dEtas[collection]->Fill(track_pt, dEta);
+            track_cluster_dEta_phis[collection]->Fill(track_phi, dEta);
+            track_cluster_dPhis[collection]->Fill(track_pt, dPhi);
+            track_cluster_dPhi_etas[collection]->Fill(track_eta, dPhi);
+            track_cluster_etas[collection]->Fill(track_eta, cluster_eta);
+            track_cluster_phis[collection]->Fill(track_phi, cluster_phi);
+            track_cluster_Es[collection]->Fill(track_pt, cluster_E);
+
+            num_matches_trk_pts[collection]->Fill(track_pt, matches.size());
+            num_matches_clstr_Es[collection]->Fill(cluster_E, matches.size());
             }
         }
     }
