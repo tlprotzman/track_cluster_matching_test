@@ -1,0 +1,14 @@
+universe   = vanilla
+
+executable=eic-shell
+arguments= -- ./run_matching_performance.sh $(input_file_name)
+error   = err.$(Process)
+output  = out.$(Process)
+log = log
+
+should_transfer_files = yes
+when_to_transfer_output = on_exit
+transfer_input_files = run_matching_performance.sh,matching_performance.cxx
+output_destination = /gpfs02/eic/DATA/tristan/track_cluster_matching_test/output
+queue input_file_name from files.list
+
