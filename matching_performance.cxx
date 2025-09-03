@@ -73,6 +73,7 @@ void matching_performance(std::string particle) {
 
 
     TH1* track_pt_distributions;
+    TH1* track_p_distributions;
     TH2* track_eta_phi_distributions;
     std::map<std::string, TH1*> cluster_E_distributions;
     std::map<std::string, TH2*> cluster_eta_phi_distributions;
@@ -96,23 +97,24 @@ void matching_performance(std::string particle) {
     std::map<std::string, TH2*> num_matches_trk_pts;
     std::map<std::string, TH2*> num_matches_clstr_Es;
 
-    track_pt_distributions = new TH1D("track_pt_distribution", "Track p_{T} Distribution;p_{T};Counts", 100, 0, 10);
+    track_pt_distributions = new TH1D("track_pt_distribution", "Track p_{T} Distribution;p_{T};Counts", 100, 0, 25);
+    track_p_distributions = new TH1D("track_p_distribution", "Track p Distribution;p;Counts", 100, 0, 25);
     track_eta_phi_distributions = new TH2D("track_eta_phi_distribution", "Track #eta-#phi distributions;#eta;#phi;Counts", 100, -5, 5, 100, -TMath::Pi(), TMath::Pi());
 
     for (const auto& collection : cluster_collections) {
-        cluster_E_distributions[collection] = new TH1D(Form("cluster_E_distribution_%s", collection.c_str()), "cluster E Distribution;E;Counts", 100, 0, 10);
+        cluster_E_distributions[collection] = new TH1D(Form("cluster_E_distribution_%s", collection.c_str()), "cluster E Distribution;E;Counts", 100, 0, 25);
         cluster_eta_phi_distributions[collection] = new TH2D(Form("cluster_eta_phi_distribution_%s", collection.c_str()), "cluster #eta-#phi distributions;#eta;#phi;Counts", 100, -5, 5, 100, -TMath::Pi(), TMath::Pi());
     }
 
     for (const auto& collection : match_collections) {
         track_cluster_dRs[collection] = new TH2D(Form("track_cluster_dR_%s", collection.c_str()), 
-                Form("Track-cluster dR distribution for %s;p_{T};#Delta R;Counts", collection.c_str()), 100, 0, 10, 100, 0, MAX_DR);
+                Form("Track-cluster dR distribution for %s;p_{T};#Delta R;Counts", collection.c_str()), 100, 0, 25, 100, 0, MAX_DR);
         track_cluster_dR_etas[collection] = new TH2D(Form("track_cluster_dR_vs_eta_%s", collection.c_str()), 
                 Form("Track-cluster dR distribution for %s;#eta;#Delta R;Counts", collection.c_str()), 100, -3, 3, 100, 0, MAX_DR/2);
         track_cluster_dR_phis[collection] = new TH2D(Form("track_cluster_dR_vs_phi_%s", collection.c_str()), 
                 Form("Track-cluster dR distribution for %s;#phi;#Delta R;Counts", collection.c_str()), 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
         track_cluster_dEtas[collection] = new TH2D(Form("track_cluster_dEta_%s", collection.c_str()), 
-                Form("Track-cluster dEta distribution for %s;p_{T};#Delta #eta;Counts", collection.c_str()), 100, 0, 10, 100, 0, MAX_DR);
+                Form("Track-cluster dEta distribution for %s;p_{T};#Delta #eta;Counts", collection.c_str()), 100, 0, 25, 100, 0, MAX_DR);
         track_cluster_dEta_phis[collection] = new TH2D(Form("track_cluster_dEta_phi_%s", collection.c_str()), 
                 Form("Track-cluster dEta distribution for %s;#phi;#Delta #eta;Counts", collection.c_str()), 100, -TMath::Pi(), TMath::Pi(), 100, 0, MAX_DR/2);
         track_cluster_dPhis[collection] = new TH2D(Form("track_cluster_dPhi_%s", collection.c_str()), 
@@ -124,7 +126,7 @@ void matching_performance(std::string particle) {
         track_cluster_phis[collection] = new TH2D(Form("track_cluster_phi_%s", collection.c_str()), 
                 Form("Track-cluster phi comparison for %s;Track #phi;Cluster #phi;Counts", collection.c_str()), 50, -1 * TMath::Pi(), TMath::Pi(), 50, -1 * TMath::Pi(), TMath::Pi());
         track_cluster_Es[collection] = new TH2D(Form("track_cluster_E_%s", collection.c_str()), 
-                Form("Track-cluster E comparison for %s;Track p_{T};Cluster E;Counts", collection.c_str()), 100, 0, 10, 100, 0, 10);
+                Form("Track-cluster E comparison for %s;Track p_{T};Cluster E;Counts", collection.c_str()), 100, 0, 25, 100, 0, 25);
         track_cluster_dxdy[collection] = new TH2D(Form("track_cluster_dxdy_%s", collection.c_str()), "",  1000, -1000, 1000, 1000, -1000, 1000);
         track_cluster_dr[collection] = new TH1D(Form("track_cluster_dr_%s", collection.c_str()), "", 100, -100, 100);
         track_cluster_dz[collection] = new TH1D(Form("track_cluster_dz_%s", collection.c_str()), "", 100, -100, 100);
@@ -150,9 +152,11 @@ void matching_performance(std::string particle) {
                 continue;
             }
             auto track_pt = edm4hep::utils::magnitudeTransverse(track.getPoints()[0].momentum);
+            auto track_p = edm4hep::utils::magnitude(track.getPoints()[0].momentum);
             auto track_eta = edm4hep::utils::eta(track.getPoints()[0].position);
             auto track_phi = edm4hep::utils::angleAzimuthal(track.getPoints()[0].position);
             track_pt_distributions->Fill(track_pt);
+            track_p_distributions->Fill(track_p);
             track_eta_phi_distributions->Fill(track_eta, track_phi);
         }
 
